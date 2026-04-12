@@ -9,11 +9,11 @@
 
 #define PROJECT_CSV_PATH(path) PROJECT_ROOT_DIR "/" path
 
-/* 선언부: 이 파일 안에서만 사용하는 private 함수 원형이다. */
+/* 파일 안에서만 사용: 아래 핵심 함수들이 호출하는 내부 함수 목록이다. */
 static int run_repl(void);
 static char *trim(char *text);
 
-/* 정의부: 하드코딩된 테이블, 컬럼, CSV 파일 경로다. */
+/* 고정 데이터: 테이블 이름을 컬럼 목록과 CSV 경로에 연결한다. */
 static const TableMetadata GLOBAL_TABLES[] = {
     {"users", {"id", "name"}, 2, PROJECT_CSV_PATH("data/users.csv")},
     {"posts", {"id", "title"}, 2, PROJECT_CSV_PATH("data/posts.csv")},
@@ -22,7 +22,7 @@ static const TableMetadata GLOBAL_TABLES[] = {
 static const int GLOBAL_TABLE_COUNT = sizeof(GLOBAL_TABLES) / sizeof(GLOBAL_TABLES[0]);
 
 int main(void) {
-    /* 사용부: 프로그램 시작점을 REPL 흐름으로 연결한다. */
+    /* 흐름: 프로그램 시작점을 REPL 흐름으로 연결한다. */
     return run_repl();
 }
 
@@ -46,14 +46,14 @@ static int run_repl(void) {
             return 0;
         }
 
-        /* 사용부 flow: 1. CLI SQL 입력 처리 -> 2.1 SQL 타입 판별 */
+        /* 흐름: 1. CLI SQL 입력 처리 -> 2.1 SQL 타입 판별 */
         plan = parse_sql(sql);
         if (plan.type == QUERY_INVALID) {
             printf("%s\n", plan.error_message);
             continue;
         }
 
-        /* 사용부 flow: 2.2 SQL 파싱 결과 -> 2.3 실행 분기 */
+        /* 흐름: 2.2 SQL 파싱 결과 -> 2.3 실행 분기 */
         execute_plan(&plan);
     }
 }
@@ -69,6 +69,7 @@ const TableMetadata *find_table(const char *table_name) {
     return NULL;
 }
 
+/* 내부 처리: 입력 문자열의 앞뒤 공백과 개행을 제거한다. */
 static char *trim(char *text) {
     char *end;
 

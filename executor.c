@@ -3,7 +3,7 @@
 
 #include "mini_db.h"
 
-/* 선언부: executor.c 안에서만 사용하는 private 함수 원형이다. */
+/* 파일 안에서만 사용: 아래 핵심 함수들이 호출하는 내부 함수 목록이다. */
 static void execute_select(const Plan *plan);
 static void execute_insert(const Plan *plan);
 static void print_columns(const TableMetadata *table);
@@ -13,13 +13,13 @@ static void write_values(FILE *file, const Plan *plan);
 /* 2.3 실행 분기: 파싱된 계획을 SELECT 또는 INSERT 실행으로 보낸다. */
 void execute_plan(const Plan *plan) {
     if (plan->type == QUERY_SELECT) {
-        /* 사용부 flow: 2.3 실행 분기 -> 3.3 SELECT 조회 */
+        /* 흐름: 2.3 실행 분기 -> 3.3 SELECT 조회 */
         execute_select(plan);
         return;
     }
 
     if (plan->type == QUERY_INSERT) {
-        /* 사용부 flow: 2.3 실행 분기 -> 3.2 INSERT 저장 */
+        /* 흐름: 2.3 실행 분기 -> 3.2 INSERT 저장 */
         execute_insert(plan);
         return;
     }
@@ -29,7 +29,7 @@ void execute_plan(const Plan *plan) {
 
 /* 3.3 SELECT 조회: 테이블 CSV 파일을 읽어 컬럼명과 모든 행을 출력한다. */
 static void execute_select(const Plan *plan) {
-    /* 사용부 flow: 3.3 SELECT 조회 -> 3.1 테이블 파일 매핑 */
+    /* 흐름: 3.3 SELECT 조회 -> 3.1 테이블 파일 매핑 */
     const TableMetadata *table = find_table(plan->table_name);
     FILE *file;
     char row[MAX_INPUT_SIZE];
@@ -39,7 +39,7 @@ static void execute_select(const Plan *plan) {
         return;
     }
 
-    /* 사용부 flow: 3.1 테이블 파일 매핑 -> 3.3 SELECT 조회 */
+    /* 흐름: 3.1 테이블 파일 매핑 -> 3.3 SELECT 조회 */
     file = fopen(table->csv_file_path, "r");
     if (file == NULL) {
         printf("CSV 파일을 열 수 없습니다\n");
@@ -59,7 +59,7 @@ static void execute_select(const Plan *plan) {
 
 /* 3.2 INSERT 저장: 파싱된 값 목록을 테이블 CSV 파일 끝에 추가한다. */
 static void execute_insert(const Plan *plan) {
-    /* 사용부 flow: 3.2 INSERT 저장 -> 3.1 테이블 파일 매핑 */
+    /* 흐름: 3.2 INSERT 저장 -> 3.1 테이블 파일 매핑 */
     const TableMetadata *table = find_table(plan->table_name);
     FILE *file;
 
@@ -68,7 +68,7 @@ static void execute_insert(const Plan *plan) {
         return;
     }
 
-    /* 사용부 flow: 3.1 테이블 파일 매핑 -> 3.2 INSERT 저장 */
+    /* 흐름: 3.1 테이블 파일 매핑 -> 3.2 INSERT 저장 */
     file = fopen(table->csv_file_path, "a+");
     if (file == NULL) {
         printf("CSV 파일을 열 수 없습니다\n");
@@ -80,6 +80,7 @@ static void execute_insert(const Plan *plan) {
     fclose(file);
 }
 
+/* 내부 처리: 전역 테이블 정보에 저장된 컬럼명을 CSV 형태로 출력한다. */
 static void print_columns(const TableMetadata *table) {
     for (int i = 0; i < table->column_count; i++) {
         if (i > 0) {
@@ -90,7 +91,7 @@ static void print_columns(const TableMetadata *table) {
     printf("\n");
 }
 
-/* 기존 CSV 마지막 줄과 새 INSERT 행이 붙지 않도록 필요한 경우 개행을 추가한다. */
+/* 내부 처리: 기존 CSV 마지막 줄과 새 INSERT 행이 붙지 않도록 필요한 경우 개행을 추가한다. */
 static void write_newline_if_needed(FILE *file) {
     long file_size;
     int last_char;
@@ -108,6 +109,7 @@ static void write_newline_if_needed(FILE *file) {
     }
 }
 
+/* 내부 처리: INSERT 계획의 값 목록을 CSV 한 줄로 쓴다. */
 static void write_values(FILE *file, const Plan *plan) {
     for (int i = 0; i < plan->value_count; i++) {
         if (i > 0) {

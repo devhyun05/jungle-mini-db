@@ -3,7 +3,7 @@
 
 #include "mini_db.h"
 
-/* 선언부: parser.c 안에서만 사용하는 private 함수 원형이다. */
+/* 파일 안에서만 사용: 아래 핵심 함수들이 호출하는 내부 함수 목록이다. */
 static Plan parse_select(const char *sql);
 static Plan parse_insert(const char *sql);
 static int starts_with(const char *text, const char *prefix);
@@ -17,12 +17,12 @@ Plan parse_sql(const char *sql) {
     Plan plan = {0};
 
     if (starts_with(sql, "select * from")) {
-        /* 사용부 flow: 2.1 SQL 타입 판별 -> 2.2 SELECT SQL 파싱 */
+        /* 흐름: 2.1 SQL 타입 판별 -> 2.2 SELECT SQL 파싱 */
         return parse_select(sql);
     }
 
     if (starts_with(sql, "insert into")) {
-        /* 사용부 flow: 2.1 SQL 타입 판별 -> 2.2 INSERT SQL 파싱 */
+        /* 흐름: 2.1 SQL 타입 판별 -> 2.2 INSERT SQL 파싱 */
         return parse_insert(sql);
     }
 
@@ -42,7 +42,7 @@ static Plan parse_select(const char *sql) {
     remove_trailing_semicolon(trimmed_table_name);
     trimmed_table_name = trim(trimmed_table_name);
 
-    /* 사용부 flow: 2.2 SQL 파싱 -> 3.1 테이블 파일 매핑 */
+    /* 흐름: 2.2 SQL 파싱 -> 3.1 테이블 파일 매핑 */
     if (find_table(trimmed_table_name) == NULL) {
         set_error(&plan, "존재하지 않는 테이블입니다");
         return plan;
@@ -91,7 +91,7 @@ static Plan parse_insert(const char *sql) {
 
     values = trim(values);
 
-    /* 사용부 flow: 2.2 SQL 파싱 -> 3.1 테이블 파일 매핑 */
+    /* 흐름: 2.2 SQL 파싱 -> 3.1 테이블 파일 매핑 */
     table = find_table(table_name);
     if (table == NULL) {
         set_error(&plan, "존재하지 않는 테이블입니다");
@@ -124,15 +124,18 @@ static Plan parse_insert(const char *sql) {
     return plan;
 }
 
+/* 내부 처리: SQL이 지정한 키워드로 시작하는지 확인한다. */
 static int starts_with(const char *text, const char *prefix) {
     return strncmp(text, prefix, strlen(prefix)) == 0;
 }
 
+/* 내부 처리: Plan을 실패 상태로 바꾸고 사용자에게 보여줄 오류 메시지를 저장한다. */
 static void set_error(Plan *plan, const char *message) {
     plan->type = QUERY_INVALID;
     snprintf(plan->error_message, sizeof(plan->error_message), "%s", message);
 }
 
+/* 내부 처리: INSERT 값에 ASCII 범위를 벗어나는 문자가 있는지 확인한다. */
 static int is_ascii_text(const char *text) {
     const unsigned char *cursor = (const unsigned char *) text;
 
@@ -146,6 +149,7 @@ static int is_ascii_text(const char *text) {
     return 1;
 }
 
+/* 내부 처리: SQL 끝의 세미콜론 하나를 제거한다. */
 static void remove_trailing_semicolon(char *text) {
     size_t length = strlen(text);
 
@@ -154,6 +158,7 @@ static void remove_trailing_semicolon(char *text) {
     }
 }
 
+/* 내부 처리: 파싱 중 잘라낸 문자열 조각의 앞뒤 공백과 개행을 제거한다. */
 static char *trim(char *text) {
     char *end;
 
