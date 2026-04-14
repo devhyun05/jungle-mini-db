@@ -79,13 +79,19 @@ def main()
 ## SQL 파서
 
 `parse_sql()`은 SQL 문자열을 실행 가능한 계획으로 바꾼다.
+SELECT와 INSERT의 세부 파서는 의사코드처럼 앞에서부터 읽고, 실패 처리는 파서 헬퍼 내부에서 처리한다.
 
 ```text
 def parse_sql(sql)
-    if sql starts with "select * from"
+    sql = trim sql
+
+    if sql does not end with ";"
+        return_err "SQL은 ;로 끝나야 합니다"
+
+    if sql starts with "select"
         return parse_select(sql)
 
-    if sql starts with "insert into"
+    if sql starts with "insert"
         return parse_insert(sql)
 
     return_err "지원하지 않는 SQL"
@@ -93,8 +99,8 @@ def parse_sql(sql)
 
 3단계:
 
-1. SQL이 `select * from`으로 시작하는지 확인한다.
-2. SQL이 `insert into`로 시작하는지 확인한다.
+1. SQL 앞뒤 공백을 정리한 뒤 마지막 의미 있는 문자가 `;`인지 확인한다.
+2. SQL이 `select`로 시작하면 SELECT 파서로, `insert`로 시작하면 INSERT 파서로 보낸다.
 3. 둘 다 아니면 파싱 오류를 반환한다.
 
 ## SQL 실행기
@@ -130,22 +136,39 @@ def execute_plan(plan)
 select * from users;
 ```
 
-인식 단위:
+인식 순서:
 
 ```text
-덩어리 1: select * from
-덩어리 2: users
-덩어리 3: ;
+is "select"
+trim
+is "*"
+trim
+is "from"
+trim
+get table_name
+trim
+is ";"
+trim
+is_end
 ```
 
 파서 의사코드:
 
 ```text
 def parse_select(sql)
-    table_name = remove "select * from" from sql
-    table_name = trim table_name
-    table_name = remove ";" from table_name
-    table_name = trim table_name
+    cursor = sql
+
+    is "select"
+    trim
+    is "*"
+    trim
+    is "from"
+    trim
+    table_name = get name
+    trim
+    is ";"
+    trim
+    is_end
 
     if table_name not in GLOBAL_TABLES
         return_err "존재하지 않는 테이블입니다"
@@ -175,7 +198,7 @@ def execute_select(plan)
 
 3단계:
 
-1. 파서는 `select * from` 앞부분과 끝의 `;`를 제거하고 앞뒤 공백을 정리해서 테이블 이름만 남긴다.
+1. 파서는 `select`, `*`, `from`, 테이블 이름, `;`, 입력 끝을 앞에서부터 순서대로 확인한다.
 2. 파서는 테이블 이름이 `GLOBAL_TABLES`에 있는지 확인하고 `SELECT` 계획을 만든다.
 3. 실행기는 계획의 테이블 이름으로 프로젝트 루트 기준 CSV 경로를 가져와 컬럼명과 전체 행을 출력한다.
 
@@ -189,27 +212,46 @@ def execute_select(plan)
 insert into users values (1, kim);
 ```
 
-인식 단위:
+인식 순서:
 
 ```text
-덩어리 1: insert into
-덩어리 2: users
-덩어리 3: values (1, kim);
+is "insert"
+trim
+is "into"
+trim
+get table_name
+trim
+is "values"
+trim
+get values
+trim
+is ";"
+trim
+is_end
 ```
 
 파서 의사코드:
 
 ```text
 def parse_insert(sql)
-    rest = remove "insert into" from sql
-    table_name = text before "values" in rest
-    table_name = trim table_name
-    values = text after "values" in rest
-    values = trim values
+    cursor = sql
+
+    is "insert"
+    trim
+    is "into"
+    trim
+    table_name = get name
+    trim
+    is "values"
+    trim
+    values = get text until ";"
+    trim
+    is ";"
+    trim
+    is_end
 
     values = remove "(" from values
     values = remove ")" from values
-    values = remove ";" from values
     values = trim values
     value_list = split values by ","
     value_list = trim each value
