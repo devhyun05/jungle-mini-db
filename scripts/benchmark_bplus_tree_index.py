@@ -172,11 +172,23 @@ def validate_args(args):
 
 
 def build_project():
-    subprocess.run(
+    completed = subprocess.run(
         ["cmake", "--build", "cmake-build-debug"],
         cwd=REPO_ROOT,
-        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
     )
+    if completed.returncode != 0:
+        raise RuntimeError(
+            "cmake build failed with exit code %d:\nstdout:\n%s\nstderr:\n%s"
+            % (completed.returncode, completed.stdout, completed.stderr)
+        )
+
+
+def print_progress(message):
+    print(message, file=sys.stderr, flush=True)
 
 
 def unlink_if_exists(path):
@@ -225,6 +237,8 @@ def load_records_with_insert(executable, records):
         ]
         process.stdin.write("".join(commands).encode("ascii"))
         process.stdin.flush()
+        if records >= 100000 and (end_id % 100000 == 0 or end_id == records):
+            print_progress("  inserted {:,}/{:,} records".format(end_id, records))
 
     process.stdin.write(b".exit\n")
     process.stdin.close()
@@ -341,19 +355,24 @@ def main():
 
     try:
         if not args.skip_build:
+            print_progress("[1/4] building mini DB")
             build_project()
+            print_progress("[1/4] build complete")
         if not executable.exists():
             raise FileNotFoundError("mini DB executable not found: %s" % executable)
 
         target_id = args.target_id if args.target_id is not None else args.records
         target_name = fixed_user_name(target_id)
 
+        print_progress("[2/4] preparing users table")
         reset_users_table()
+        print_progress("[3/4] loading {:,} records using {} mode".format(args.records, args.load_mode))
         if args.load_mode == "insert":
             load_seconds = load_records_with_insert(executable, args.records)
         else:
             load_seconds = load_records_by_generation(executable, args.records)
 
+        print_progress("[4/4] measuring SELECT performance")
         indexed_seconds = measure_indexed_select(executable, target_id, args.select_repetitions)
         linear_seconds = measure_linear_select(target_name, args.select_repetitions)
 
@@ -370,6 +389,7 @@ def main():
         print_result(result)
         if args.output is not None:
             write_output(args.output, result)
+            print_progress("wrote JSON result: %s" % args.output)
 
         return 0
     except Exception as error:
